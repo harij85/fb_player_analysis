@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Football Analysis Web MVP</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 800px;
+            margin-bottom: 20px;
+        }
+        h1, h2, h3 {
+            color: #555;
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="file"], input[type="text"], button {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            width: calc(100% - 22px);
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .image-display {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .image-display img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .results-area {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: red;
+            background-color: #ffebee;
+            border: 1px solid red;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .options {
+            margin-bottom: 15px;
+        }
+        .options label {
+            display: inline-block;
+            margin-right: 10px;
+        }
+        #feedbackList {
+            margin-top: 10px;
+            padding-left: 20px;
+            color: #333;
+        }
+        #feedbackList li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Football Performance Analysis</h1>
+
+    <label for="imageFile">Upload Image:</label>
+    <input type="file" id="imageFile" accept="image/jpeg, image/png, image/webp">
+
+    <label for="polygonCoords">Playing Field Polygon (JSON string, optional):</label>
+    <input type="text" id="polygonCoords" placeholder='e.g., [[0,0],[1280,0],[1280,720],[0,720]]'>
+    <small>Format: Array of [x,y] points. e.g., [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]</small>
+
+    <div class="options">
+        <input type="checkbox" id="returnAnnotatedImage" checked>
+        <label for="returnAnnotatedImage">Return Annotated Image</label>
+    </div>
+
+    <button id="processButton" onclick="processImage()">Process Image</button>
+
+    <div class="loader" id="loader"></div>
+    <div class="error-message" id="errorMessage" style="display:none;"></div>
+
+    <div class="image-display">
+        <h2>Original Image Preview:</h2>
+        <img id="originalImagePreview" src="#" alt="Original Image Preview" style="display:none;">
+    </div>
+</div>
+
+<div class="container" id="resultsContainer" style="display:none;">
+    <h2>Analysis Results:</h2>
+    <div class="image-display">
+        <h3>Annotated Image:</h3>
+        <img id="annotatedImage" src="#" alt="Annotated Image" style="display:none;">
+    </div>
+    <h3>JSON Data:</h3>
+    <pre id="jsonData" class="results-area"></pre>
+    <h3>Player Feedback:</h3>
+    <ul id="feedbackList" class="results-area"></ul>
+</div>
+
+<script>
+const API_URL = 'http://localhost:8000/process_frame/';
+const imageFileInput = document.getElementById('imageFile');
+const polygonCoordsInput = document.getElementById('polygonCoords');
+const returnAnnotatedImageCheckbox = document.getElementById('returnAnnotatedImage');
+const processButton = document.getElementById('processButton');
+const loader = document.getElementById('loader');
+const errorMessageDiv = document.getElementById('errorMessage');
+const originalImagePreview = document.getElementById('originalImagePreview');
+const resultsContainer = document.getElementById('resultsContainer');
+const annotatedImage = document.getElementById('annotatedImage');
+const jsonData = document.getElementById('jsonData');
+const feedbackList = document.getElementById('feedbackList');
+
+imageFileInput.addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            originalImagePreview.src = e.target.result;
+            originalImagePreview.style.display = 'block';
+        }
+        reader.readAsDataURL(file);
+        resultsContainer.style.display = 'none';
+        errorMessageDiv.style.display = 'none';
+    } else {
+        originalImagePreview.style.display = 'none';
+    }
+});
+
+async function processImage() {
+    const file = imageFileInput.files[0];
+    if (!file) {
+        displayError("Please select an image file first.");
+        return;
+    }
+
+    loader.style.display = 'block';
+    processButton.disabled = true;
+    errorMessageDiv.style.display = 'none';
+    resultsContainer.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('image_file', file);
+
+    const polygonCoordsValue = polygonCoordsInput.value.trim();
+    if (polygonCoordsValue) {
+        try {
+            JSON.parse(polygonCoordsValue);
+            formData.append('playing_field_polygon_coords_json', polygonCoordsValue);
+        } catch (e) {
+            displayError("Playing Field Polygon is not valid JSON. Please check the format or leave it empty.");
+            loader.style.display = 'none';
+            processButton.disabled = false;
+            return;
+        }
+    }
+    formData.append('return_annotated_image', returnAnnotatedImageCheckbox.checked.toString());
+
+    try {
+        const response = await fetch(API_URL, { method: 'POST', body: formData });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: `HTTP error! Status: ${response.status}` }));
+            throw new Error(errorData.detail || `Server error: ${response.status}`);
+        }
+        const data = await response.json();
+        displayResults(data);
+    } catch (error) {
+        console.error('Error:', error);
+        displayError(`Failed to process image: ${error.message}`);
+    } finally {
+        loader.style.display = 'none';
+        processButton.disabled = false;
+    }
+}
+
+function displayResults(data) {
+    resultsContainer.style.display = 'block';
+    if (data.annotated_image_base64 && returnAnnotatedImageCheckbox.checked) {
+        annotatedImage.src = `data:image/jpeg;base64,${data.annotated_image_base64}`;
+        annotatedImage.style.display = 'block';
+    } else {
+        annotatedImage.style.display = 'none';
+    }
+    const displayData = { ...data };
+    if (displayData.annotated_image_base64) {
+        displayData.annotated_image_base64 = '(Image data - view above)';
+    }
+    jsonData.textContent = JSON.stringify(displayData, null, 2);
+
+    feedbackList.innerHTML = '';
+    if (Array.isArray(data.performance_feedback) && data.performance_feedback.length > 0) {
+        data.performance_feedback.forEach(fb => {
+            const li = document.createElement('li');
+            li.textContent = `${fb.player_id}: ${fb.feedback.join("; ")}`;
+            feedbackList.appendChild(li);
+        });
+    } else {
+        const li = document.createElement('li');
+        li.textContent = "No feedback available.";
+        feedbackList.appendChild(li);
+    }
+}
+
+function displayError(message) {
+    errorMessageDiv.textContent = message;
+    errorMessageDiv.style.display = 'block';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+.venv
+.env
+video
+fbanalysis_mvp/
+videos/
+# Add this to .gitignore
+.venv/
+__pycache__/
+*.pyc
+*.log
+
+
+# Output & temp
+video_analysis_output/
+temp_json_output/
+pass_data_for_training/
+*.log
+*.csv
+
+# Model weights or binaries
+weights/
+
+# IDEs and OS
+.DS_Store
+*.swp
