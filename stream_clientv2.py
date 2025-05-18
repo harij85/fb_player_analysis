@@ -8,7 +8,7 @@ import time
 import os
 from pathlib import Path 
 
-API_URL = "http://127.0.0.1:8000/process_g2_frame/"
+API_URL = "http://35.176.228.205:8000/process_g2_frame/"
 VIDEO_SOURCE = 1 # or "path/to/video.mp4"
 OUTPUT_JSON_DIR = "./video_analysis_output" # Define your output directory
 VIDEO_ID = "game_session_01" # An identifier for the current video
