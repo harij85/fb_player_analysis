@@ -144,6 +144,8 @@ print("ArUco detector initialized.")
 
 
 # --- Open Webcam ---
+
+"""
 CAMERA_INDEX = 2 # Set your camera index
 cap = cv2.VideoCapture(CAMERA_INDEX)
 if not cap.isOpened():
@@ -165,6 +167,10 @@ if not cap.isOpened():
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 print(f"Webcam opened successfully: {frame_width}x{frame_height}")
+
+"""
+
+# ---- Playing Field ---- 
 
 if PLAYING_FIELD_POLYGON is None:
     print(f"PLAYING_FIELD_POLYGON not set. Using full webcam frame.")
